@@ -1,0 +1,30 @@
+[project]
+name = "projectbloodvessels"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = "==3.9.6"
+dependencies = [
+    "matplotlib>=3.9.4",
+    "networkx>=3.2.1",
+    "scipy>=1.6.0",
+    "requests==2.25.1",
+    "tqdm==4.56.0",
+    "numpy>=1.23",
+    "six==1.16.0",
+    "fast_pagerank==0.0.4",
+    "loader==2017.9.11",
+    "outdated==0.2.1",
+    "pytorch_lightning==1.4.4",
+    "tensorboardX==2.4",
+    "torch>=2.6.0",
+    "torch-geometric>=2.6.1",
+    "torchvision>=0.21.0",
+    "torch-cluster==1.6.3",
+    "torch_scatter==2.1.2",
+    "torch_sparse==0.6.18",
+    "julia==0.5.6",
+    "nibabel==3.2.1",
+    "scikit-learn>=1.6.1",
+    "pandas>=2.2.3",
+    "plotly>=6.0.1",
+]
