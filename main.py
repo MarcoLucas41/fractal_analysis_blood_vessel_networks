@@ -2,7 +2,7 @@ import torch_geometric.nn
 import torch
 from pytorch_dataset.link_dataset import LinkVesselGraph
 from pytorch_dataset.node_dataset import NodeVesselGraph
-
+import matplotlib.pyplot as plt
 from torch_geometric.utils import to_networkx
 from torch_geometric.data import Data
 import torch_geometric.transforms as T
@@ -14,6 +14,68 @@ import numpy as np
 
 
 from networkx.algorithms.community import greedy_modularity_communities
+
+
+def fractal_dimension_3D(coords, n_scales=10, n_offsets=3, plot=True):
+    """
+    Estimates the fractal dimension of a 3D point cloud using the box-counting method.
+
+    Parameters:
+        coords (np.ndarray): 3D coordinates of shape (N, 3)
+        n_scales (int): Number of scales (box sizes) to evaluate
+        n_offsets (int): Number of random offsets to try per scale
+        plot (bool): If True, shows log-log plot and fit
+
+    Returns:
+        float: Estimated fractal dimension
+    """
+    assert coords.ndim == 2 and coords.shape[1] == 3, "Input must be an (N, 3) array."
+
+    # Normalize coordinates to [0, 1] range
+    coords_min = coords.min(axis=0)
+    coords_max = coords.max(axis=0)
+    norm_coords = (coords - coords_min) / (coords_max - coords_min)
+
+    # Define scales (box sizes)
+    epsilons = np.logspace(-1.5, 0, num=n_scales, base=10)  # from 10^-1.5 to 1.0
+
+    N_boxes = []
+    for eps in epsilons:
+        counts = []
+        for _ in range(n_offsets):
+            offset = np.random.uniform(0, eps, size=(1, 3))
+            shifted = norm_coords + offset
+            bins = np.floor(shifted / eps).astype(int)
+            # Count unique boxes
+            key = bins[:, 0] + bins[:, 1] * 1_000 + bins[:, 2] * 1_000_000
+            counts.append(len(np.unique(key)))
+        N_boxes.append(min(counts))  # Use the smallest count over all offsets
+
+    # Linear fit in log-log space
+    log_eps = np.log(1 / epsilons)
+    log_N = np.log(N_boxes)
+    coeffs = np.polyfit(log_eps, log_N, 1)
+    fractal_dim = coeffs[0]
+
+    # Plotting
+    if plot:
+        plt.figure(figsize=(8, 6))
+        plt.plot(log_eps, log_N, 'o-', label='Box count')
+        plt.plot(log_eps, np.polyval(coeffs, log_eps), 'k--', label=f'Fit: D ≈ {fractal_dim:.3f}')
+        plt.xlabel(r'$\log(1/\epsilon)$')
+        plt.ylabel(r'$\log(N(\epsilon))$')
+        plt.title('Fractal Dimension (Box-Counting)')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    return fractal_dim
+
+
+
+
+
 
 def generate_brain_plot(data):
     # Extract node data
@@ -50,7 +112,7 @@ def generate_brain_plot(data):
     edge_trace = go.Scatter3d(
         x=edge_x, y=edge_y, z=edge_z,
         mode='lines',
-        line=dict(color='rgba(100,100,100,0.3)', width=1),
+        line=dict(color='rgba(255,0,0,1)', width=10),
         hoverinfo='none',
         name='Edges'
     )
@@ -62,7 +124,7 @@ def generate_brain_plot(data):
         z=node_coords[:, 2],
         mode='markers',
         marker=dict(
-            size=2,
+            size=3,
             color=node_region_labels,
             colorscale='Viridis',
             colorbar=dict(title='Region'),
@@ -84,6 +146,9 @@ def generate_brain_plot(data):
 # for multi-class labeling
 
 def graph_analysis(G):
+    num_nodes = G.number_of_nodes()
+    print("Number of nodes:", num_nodes)
+
     num_edges = G.number_of_edges()
     print("Number of edges:", num_edges)
 
@@ -210,7 +275,7 @@ def get_node_vessel_graph(dataset):
 # separar por camadas
 # buscar o componente com mais nós
 
-def generate_training_graph(data: Data, voxel_dim: list = (100.0, 100.0, 100.0),
+def generate_training_graph(data: Data, voxel_dim: list = (300.0, 300.0, 300.0),
                             low_degree_threshold: float = 0.01):
 
     c = torch_geometric.nn.voxel_grid(data.x[:, 0:3], list(voxel_dim))
@@ -258,21 +323,40 @@ def main():
     data = get_link_vessel_graph(dataset[0],splitting_strategy)
     #data = get_node_vessel_graph(dataset[0])
 
-    # generate_brain_plot(data)
-    print("Node feature shape:", data.x.shape)
-    
-    nx_graph, largest_component_data = generate_training_graph(data)
-    
-    #generate_brain_plot(data)
-
-
-    print("Node feature shape:", data.x.shape)
-    
-
-
-
-
     #G = to_networkx(data, to_undirected=False)
+    #graph_analysis(G)
+    # generate_brain_plot(data)
+    #print("Node feature shape:", data.x.shape)
+    #
+    nx_graph, largest_component_data = generate_training_graph(data)
+
+    generate_brain_plot(largest_component_data)
+
+    node_features_np = largest_component_data.x.cpu().numpy()
+    node_coords = node_features_np[:, :3]
+    print("Node coordenates shape: ",node_coords.shape)
+
+    for i in node_coords.shape:
+        print(i)
+    #print(node_coords)
+    #graph_analysis(nx_graph)
+
+    #
+    # print(nx_graph)
+    #
+    fd = fractal_dimension_3D(node_coords, n_scales=12, n_offsets=4, plot=True)
+    print(f"Estimated fractal dimension: {fd:.4f}")
+    #
+    #generate_brain_plot(data)
+    #
+    #
+    # print("Node feature shape:", data.x.shape)
+    #
+
+
+
+
+
     #graph_analysis(G)
 
 
